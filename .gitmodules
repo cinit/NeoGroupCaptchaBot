@@ -1,0 +1,9 @@
+[submodule "libs/MMKV"]
+	path = libs/MMKV
+	url = https://github.com/Tencent/MMKV
+[submodule "libs/rapidjson"]
+	path = libs/rapidjson
+	url = https://github.com/Tencent/rapidjson
+[submodule "libs/td"]
+	path = libs/td
+	url = https://github.com/tdlib/td.git
