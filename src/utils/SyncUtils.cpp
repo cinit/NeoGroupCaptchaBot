@@ -3,6 +3,7 @@
 //
 
 #include <thread>
+#include <chrono>
 #include "CachedThreadPool.h"
 
 #include "SyncUtils.h"
@@ -23,6 +24,10 @@ void async(std::function<void()> func) {
 
 void Thread::sleep(int ms) {
     std::this_thread::sleep_for(std::chrono::milliseconds(ms));
+}
+
+uint64_t getCurrentTimeMillis() {
+    return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 }
 
 }

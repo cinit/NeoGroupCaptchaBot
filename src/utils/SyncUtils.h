@@ -6,6 +6,7 @@
 #define NEOGROUPCAPTCHABOT_SYNCUTILS_H
 
 #include <functional>
+#include <cstdint>
 
 namespace utils {
 
@@ -15,6 +16,8 @@ class Thread {
 public:
     static void sleep(int ms);
 };
+
+[[nodiscard]] uint64_t getCurrentTimeMillis();
 
 }
 

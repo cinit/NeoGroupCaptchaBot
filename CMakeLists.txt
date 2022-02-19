@@ -27,7 +27,7 @@ add_executable(NeoGroupCaptchaBot
         src/utils/file_utils.cpp src/utils/CachedThreadPool.cpp src/utils/SyncUtils.cpp
 
         src/utils/log/Log.cpp
-        src/utils/config/ConfigManager.cpp)
+        src/utils/config/ConfigManager.cpp src/core/manager/SessionManager.cpp src/core/manager/ClientSession.cpp)
 
 include_directories(libs/rapidjson/include)
 include_directories(libs/MMKV/Core)
@@ -39,4 +39,4 @@ set_target_properties(NeoGroupCaptchaBot PROPERTIES
         POSITION_INDEPENDENT_CODE ON
         )
 
-target_link_libraries(NeoGroupCaptchaBot c core memprof tdactor tdcore tddb tdnet tdutils)
+target_link_libraries(NeoGroupCaptchaBot c core memprof tdcore tdnet tdutils tdclient)
