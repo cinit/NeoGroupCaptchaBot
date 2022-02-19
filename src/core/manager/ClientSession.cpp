@@ -222,6 +222,16 @@ bool ClientSession::handleUpdate(td::td_api::object_ptr<td::td_api::Object> upda
             handleUpdateSupergroup(std::move(updateSupergroup->supergroup_));
             return true;
         }
+        case td_api::updateDeleteMessages::ID: {
+            auto updateDeleteMessages = td_api::move_object_as<td_api::updateDeleteMessages>(std::move(update));
+            handleUpdateDeleteMessages(std::move(updateDeleteMessages));
+            return true;
+        }
+        case td_api::updateMessageSendSucceeded::ID: {
+            auto updateMessageSendSucceeded = td_api::move_object_as<td_api::updateMessageSendSucceeded>(std::move(update));
+            handleUpdateMessageSendSucceeded(std::move(updateMessageSendSucceeded));
+            return true;
+        }
         default: {
             LOGE("Unknown update: id = %d", updateType);
             return false;
@@ -418,8 +428,12 @@ void ClientSession::handleUpdateNewChat(td::td_api::object_ptr<td::td_api::chat>
 
 void ClientSession::handleUpdateNewMessage(td::td_api::object_ptr<td::td_api::message> message) {
     if (message) {
-        bool handled = false;
         td::td_api::message *msg = message.get();
+        if (msg->is_outgoing_) {
+            // we don't need to handle outgoing messages
+            return;
+        }
+        bool handled = false;
         if (mMessageHandler != nullptr) {
             handled = mMessageHandler.get()->operator()(this, msg);
         }
@@ -438,6 +452,53 @@ void ClientSession::handleUpdateSupergroup(td::td_api::object_ptr<td::td_api::su
 void ClientSession::handleUpdateBasicGroup(td::td_api::object_ptr<td::td_api::basicGroup> basicGroup) {
     if (basicGroup) {
         LOGI("BasicGroup: id = %ld, upgraded_to_supergroup_id = %ld", basicGroup->id_, basicGroup->upgraded_to_supergroup_id_);
+    }
+}
+
+ClientSession::MessageHandler *ClientSession::getMessageHandler() const {
+    return mMessageHandler.get();
+}
+
+void ClientSession::setMessageHandler(ClientSession::MessageHandler messageHandler) {
+    mMessageHandler = std::make_unique<ClientSession::MessageHandler>(std::move(messageHandler));
+}
+
+void ClientSession::handleUpdateDeleteMessages(td::td_api::object_ptr<td::td_api::updateDeleteMessages> update) {
+    if (update) {
+        std::string messageIds;
+        for (auto const &messageId: update->message_ids_) {
+            messageIds += std::to_string(messageId) + ", ";
+        }
+        LOGI("UpdateDeleteMessages: chat_id = %ld, message_ids = %s", update->chat_id_, messageIds.c_str());
+    }
+}
+
+void ClientSession::sendTextMessage(int64_t chatId, const std::string &text, uint64_t replyId,
+                                    std::function<void(td::td_api::object_ptr<td::td_api::Object>)> callback) {
+    td::td_api::object_ptr<td::td_api::formattedText> formattedText =
+            td::td_api::make_object<td::td_api::formattedText>(text, std::vector<td::td_api::object_ptr<td::td_api::textEntity>>());
+    td::td_api::object_ptr<td::td_api::InputMessageContent> inputMessage =
+            td::td_api::make_object<td::td_api::inputMessageText>(std::move(formattedText), false, false);
+    td::td_api::object_ptr<td::td_api::sendMessage> request = td::td_api::make_object<td::td_api::sendMessage>(
+            chatId, 0, replyId,
+            td::td_api::make_object<td_api::messageSendOptions>(false, false, false, nullptr),
+            nullptr, std::move(inputMessage));
+    execute(std::move(request), std::move(callback));
+}
+
+void ClientSession::sendTextMessage(int64_t chatId, const std::string &text, uint64_t replyId) {
+    sendTextMessage(chatId, text, replyId, [](td::td_api::object_ptr<td::td_api::Object> object) {
+        if (object && object->get_id() == td::td_api::error::ID) {
+            auto error = td::move_tl_object_as<td::td_api::error>(object);
+            LOGE("sendTextMessage code:%d error: %s", error->code_, error->message_.c_str());
+        }
+    });
+}
+
+void ClientSession::handleUpdateMessageSendSucceeded(td::td_api::object_ptr<td::td_api::updateMessageSendSucceeded> update) {
+    if (update) {
+        LOGI("UpdateMessageSendSucceeded: message_id = %ld, message_thread_id = %ld",
+             update->old_message_id_, update->message_->message_thread_id_);
     }
 }
 

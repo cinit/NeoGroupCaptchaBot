@@ -68,6 +68,11 @@ public:
 
     void execute(td::td_api::object_ptr<td::td_api::Function> request, nullptr_t);
 
+    void sendTextMessage(int64_t chatId, const std::string &text, uint64_t replyId,
+                         std::function<void(td::td_api::object_ptr<td::td_api::Object>)> callback);
+
+    void sendTextMessage(int64_t chatId, const std::string &text, uint64_t replyId = 0);
+
     [[nodiscard]] bool isAuthorized() const;
 
     [[nodiscard]] AuthorizationState getAuthorizationState() const;
@@ -75,6 +80,10 @@ public:
     [[nodiscard]] uint64_t getServerTimeSeconds() const;
 
     [[nodiscard]] uint64_t getServerTimeMillis() const;
+
+    [[nodiscard]] MessageHandler *getMessageHandler() const;
+
+    void setMessageHandler(MessageHandler messageHandler);
 
     void logInWithBotToken(const std::string &botToken);
 
@@ -98,6 +107,10 @@ private:
     void handleUpdateBasicGroup(td::td_api::object_ptr<td::td_api::basicGroup> basicGroup);
 
     void handleUpdateSupergroup(td::td_api::object_ptr<td::td_api::supergroup> supergroup);
+
+    void handleUpdateDeleteMessages(td::td_api::object_ptr<td::td_api::updateDeleteMessages> update);
+
+    void handleUpdateMessageSendSucceeded(td::td_api::object_ptr<td::td_api::updateMessageSendSucceeded> update);
 
     void handleUpdateOption(const std::string &name, const td::td_api::object_ptr<td::td_api::OptionValue> &object);
 
