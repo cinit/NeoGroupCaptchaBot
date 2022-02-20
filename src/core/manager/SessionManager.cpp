@@ -98,7 +98,7 @@ void SessionManager::dispatchResponse(td::ClientManager::Response &response) {
             mQueryCallbacks.remove(requestId);
             callback(std::move(object));
         } else {
-            LOGE("No callback for request id %ld", requestId);
+            LOGD("No callback for request id %ld", requestId);
         }
     } else {
         // it's an update

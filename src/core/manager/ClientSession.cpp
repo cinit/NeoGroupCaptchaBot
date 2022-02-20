@@ -198,6 +198,112 @@ bool ClientSession::handleUpdate(td::td_api::object_ptr<td::td_api::Object> upda
             LOGD("updateSelectedBackground not implemented");
             return true;
         }
+        case td_api::updateChatThemes::ID: {
+            LOGD("updateChatThemes not implemented");
+            return true;
+        }
+        case td_api::updateDiceEmojis::ID: {
+            LOGD("updateDiceEmojis not implemented");
+            return true;
+        }
+        case td_api::updateRecentStickers::ID: {
+            LOGD("updateRecentStickers not implemented");
+            return true;
+        }
+        case td_api::updateHavePendingNotifications::ID: {
+            LOGI("TODO: updateHavePendingNotifications not implemented");
+            return true;
+        }
+        case td_api::updateChatFilters::ID: {
+            LOGW("TODO: updateChatFilters not implemented");
+            return true;
+        }
+        case td_api::updateChatActionBar::ID: {
+            LOGW("TODO: updateChatActionBar not implemented");
+            return true;
+        }
+        case td_api::updateChatTitle::ID: {
+            LOGW("TODO: updateChatTitle not implemented");
+            return true;
+        }
+        case td_api::updateScopeNotificationSettings::ID: {
+            LOGI("TODO: updateScopeNotificationSettings not implemented");
+            return true;
+        }
+        case td_api::updateChatMessageTtl::ID: {
+            LOGI("TODO: updateChatMessageTtl not implemented");
+            return true;
+        }
+        case td_api::updateReactions::ID: {
+            LOGW("TODO: updateReactions not implemented");
+            return true;
+        }
+        case td_api::updateMessageContent::ID: {
+            LOGW("TODO: updateMessageContent not implemented");
+            return true;
+        }
+        case td_api::updateMessageEdited::ID: {
+            LOGW("TODO: updateMessageEdited not implemented");
+            return true;
+        }
+        case td_api::updateChatLastMessage::ID: {
+            return true;
+        }
+        case td_api::updateChatReadInbox::ID: {
+            LOGI("TODO: updateChatReadInbox not implemented");
+            return true;
+        }
+        case td_api::updateChatReadOutbox::ID: {
+            LOGI("TODO: updateChatReadOutbox not implemented");
+            return true;
+        }
+        case td_api::updateChatNotificationSettings::ID: {
+            LOGI("TODO: updateChatNotificationSettings not implemented");
+            return true;
+        }
+        case td_api::updateChatPosition::ID: {
+            return true;
+        }
+        case td_api::updateSupergroupFullInfo::ID: {
+            LOGW("TODO: updateSupergroupFullInfo not implemented");
+            return true;
+        }
+        case td_api::updateChatUnreadMentionCount::ID: {
+            LOGW("TODO: updateChatUnreadMentionCount not implemented");
+            return true;
+        }
+        case td_api::updateMessageMentionRead::ID: {
+            LOGD("updateMessageMentionRead not implemented");
+            return true;
+        }
+        case td_api::updateChatVideoChat::ID: {
+            LOGW("TODO: updateChatVideoChat not implemented");
+            return true;
+        }
+        case td_api::updateUserStatus::ID: {
+            LOGW("TODO: updateUserStatus not implemented");
+            return true;
+        }
+        case td_api::updateChatAction::ID: {
+            LOGW("TODO: updateChatAction not implemented");
+            return true;
+        }
+        case td_api::updateUserFullInfo::ID: {
+            LOGW("TODO: updateUserFullInfo not implemented");
+            return true;
+        }
+        case td_api::updateChatAvailableReactions::ID: {
+            LOGI("TODO: updateChatAvailableReactions not implemented");
+            return true;
+        }
+        case td_api::updateChatMessageSender::ID: {
+            LOGW("TODO: updateChatMessageSender not implemented");
+            return true;
+        }
+        case td_api::updateMessageInteractionInfo::ID: {
+            LOGI("TODO: updateMessageInteractionInfo not implemented");
+            return true;
+        }
         case td_api::updateUser::ID: {
             auto updateUser = td_api::move_object_as<td_api::updateUser>(std::move(update));
             handleUpdateUser(std::move(updateUser->user_));
@@ -538,7 +644,7 @@ void ClientSession::handleUpdateNewMessage(td::td_api::object_ptr<td::td_api::me
             handled = mMessageHandler.get()->operator()(this, msg);
         }
         if (!handled) {
-            LOGW("Unhandled message: %s", messageToString(message.get()).c_str());
+            LOGI("Unhandled message: %s", messageToString(message.get()).c_str());
         }
     }
 }
