@@ -12,6 +12,8 @@
 static constexpr const auto LOG_TAG = "ClientSession";
 
 namespace td_api = td::td_api;
+using utils::async;
+using utils::Thread;
 
 namespace core {
 
@@ -297,6 +299,9 @@ bool ClientSession::handleUpdate(td::td_api::object_ptr<td::td_api::Object> upda
             LOGI("TODO: updateChatAvailableReactions not implemented");
             return true;
         }
+        case td_api::updateChatUnreadReactionCount::ID: {
+            return true;
+        }
         case td_api::updateChatMessageSender::ID: {
             LOGW("TODO: updateChatMessageSender not implemented");
             return true;
@@ -416,6 +421,24 @@ bool ClientSession::handleUpdateAuthorizationState(td::td_api::object_ptr<td::td
         case td_api::authorizationStateReady::ID: {
             mAuthState = AuthorizationState::AUTHORIZED;
             LOGI("Authorization success");
+            // TODO: 2022-02-20 check if we are user or bot, only set if we are user
+            async([this]() {
+                Thread::sleep(3000);
+                // set user offline after 3 seconds
+                auto request = td_api::make_object<td_api::setOption>("online", td_api::make_object<td_api::optionValueBoolean>(false));
+                execute(std::move(request), [](auto resp) {
+                    int32_t result = resp->get_id();
+                    if (result == td_api::ok::ID) {
+                        LOGI("setOption('online', false) success");
+                        return;
+                    }
+                    LOGD("setOption: %d", result);
+                    if (resp->get_id() == td_api::error::ID) {
+                        auto error = td_api::move_object_as<td_api::error>(resp);
+                        LOGE("setOption error: %s", error->message_.c_str());
+                    }
+                });
+            });
             return true;
         }
         case td_api::authorizationStateWaitCode::ID: {
