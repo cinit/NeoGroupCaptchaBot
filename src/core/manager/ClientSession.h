@@ -27,8 +27,8 @@ public:
         bool use_test_dc_ = false;
         std::string database_directory_; // to be set by client
         std::string files_directory_;
-        bool use_file_database_ = false;
-        bool use_chat_info_database_ = false;
+        bool use_file_database_ = true;
+        bool use_chat_info_database_ = true;
         bool use_message_database_ = false;
         bool use_secret_chats_ = false;
         int32_t api_id_; // to be set by client
@@ -45,6 +45,7 @@ public:
         INITIALIZATION,
         WAIT_TOKEN,
         WAIT_CODE,
+        WAIT_PASSWORD,
         WAIT_RESPONSE,
         AUTHORIZED,
         BAD_TOKEN,
@@ -87,6 +88,8 @@ public:
 
     void logInWithBotToken(const std::string &botToken);
 
+    void logInWithPhoneNumber(const std::string &botToken);
+
     bool handleUpdate(td::td_api::object_ptr<td::td_api::Object> update);
 
     void onTerminate();
@@ -94,6 +97,8 @@ public:
     void terminate();
 
 private:
+    void sendTdLibParameters();
+
     bool handleUpdateAuthorizationState(td::td_api::object_ptr<td::td_api::AuthorizationState> object);
 
     void handleUpdateConnectionState(int32_t state);
@@ -122,6 +127,7 @@ private:
     uint64_t mAuthorizationDate = 0;
     std::atomic<AuthorizationState> mAuthState = AuthorizationState::INITIALIZATION;
     std::string mAuthBotToken;
+    std::string mAuthUserPhone;
     td::tl_object_ptr<td::td_api::user> mUser;
     uint64_t mServerTimeDeltaSeconds = 0;
     std::unique_ptr<MessageHandler> mMessageHandler;

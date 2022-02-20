@@ -49,10 +49,10 @@ uint64_t SessionManager::sendRequestWithClientId(int32_t clientId,
     return requestId;
 }
 
-ClientSession *SessionManager::createSession(const ClientSession::TdLibParameters &parameters) {
+std::shared_ptr<ClientSession> SessionManager::createSession(const ClientSession::TdLibParameters &parameters) {
     int32_t id = getClientManager()->create_client_id();
-    mClientSessions.put(id, std::make_unique<ClientSession>(this, id, parameters));
-    auto *ptr = mClientSessions.get(id)->get();
+    auto sp = std::make_shared<ClientSession>(this, id, parameters);
+    mClientSessions.put(id, sp);
     if (mWorkerThread == 0) {
         mLooperRunning = true;
         int rc = pthread_create(&mWorkerThread, nullptr,
@@ -61,15 +61,15 @@ ClientSession *SessionManager::createSession(const ClientSession::TdLibParameter
             throw std::runtime_error("Failed to create worker thread: error code " + std::to_string(rc));
         }
     }
-    return ptr;
+    return sp;
 }
 
-ClientSession *SessionManager::getSession(int32_t tdLibId) const {
+std::shared_ptr<ClientSession> SessionManager::getSession(int32_t tdLibId) const {
     auto session = mClientSessions.get(tdLibId);
     if (session == nullptr) {
         return nullptr;
     }
-    return session->get();
+    return *session;
 }
 
 void SessionManager::runLooper(SessionManager *sessionManager) {

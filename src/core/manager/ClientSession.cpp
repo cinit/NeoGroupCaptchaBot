@@ -1,6 +1,7 @@
 //
 // Created by kinit on 2022-02-18.
 //
+#include <iostream>
 
 #include "SessionManager.h"
 #include "utils/log/Log.h"
@@ -190,11 +191,11 @@ bool ClientSession::handleUpdate(td::td_api::object_ptr<td::td_api::Object> upda
             return true;
         }
         case td_api::updateAnimationSearchParameters::ID: {
-            LOGI("updateAnimationSearchParameters not implemented");
+            LOGD("updateAnimationSearchParameters not implemented");
             return true;
         }
         case td_api::updateSelectedBackground::ID: {
-            LOGI("updateSelectedBackground not implemented");
+            LOGD("updateSelectedBackground not implemented");
             return true;
         }
         case td_api::updateUser::ID: {
@@ -244,38 +245,11 @@ bool ClientSession::handleUpdateAuthorizationState(td::td_api::object_ptr<td::td
         return false;
     }
     int32_t type = object->get_id();
+    int32_t clientId = mTdLibObjectId;
+    LOGD("handleUpdateAuthorizationState: clientId = %d, type = %d", clientId, type);
     switch (type) {
         case td_api::authorizationStateWaitTdlibParameters::ID: {
-            // construct parameters
-            auto parameters = td_api::make_object<td_api::tdlibParameters>();
-            parameters->use_test_dc_ = mTdLibParameters.use_test_dc_;
-            parameters->database_directory_ = mTdLibParameters.database_directory_;
-            parameters->files_directory_ = mTdLibParameters.files_directory_;
-            parameters->use_file_database_ = mTdLibParameters.use_file_database_;
-            parameters->use_chat_info_database_ = mTdLibParameters.use_chat_info_database_;
-            parameters->use_message_database_ = mTdLibParameters.use_message_database_;
-            parameters->use_secret_chats_ = mTdLibParameters.use_secret_chats_;
-            parameters->api_id_ = mTdLibParameters.api_id_;
-            parameters->api_hash_ = mTdLibParameters.api_hash_;
-            parameters->system_language_code_ = mTdLibParameters.system_language_code_;
-            parameters->device_model_ = mTdLibParameters.device_model_;
-            parameters->system_version_ = mTdLibParameters.system_version_;
-            parameters->application_version_ = mTdLibParameters.application_version_;
-            parameters->enable_storage_optimizer_ = mTdLibParameters.enable_storage_optimizer_;
-            parameters->ignore_file_names_ = mTdLibParameters.ignore_file_names_;
-            // send parameters
-            execute(td_api::make_object<td_api::setTdlibParameters>(
-                    std::move(parameters)), SessionManager::logIfResponseError);
-            // send extra options: ignore_inline_thumbnails, reuse_uploaded_photos_by_hash,
-            // disable_persistent_network_statistics, disable_time_adjustment_protection
-            execute(td_api::make_object<td_api::setOption>(
-                    "ignore_inline_thumbnails", td_api::make_object<td_api::optionValueBoolean>(true)), SessionManager::logIfResponseError);
-            execute(td_api::make_object<td_api::setOption>(
-                    "reuse_uploaded_photos_by_hash", td_api::make_object<td_api::optionValueBoolean>(true)), SessionManager::logIfResponseError);
-            execute(td_api::make_object<td_api::setOption>(
-                    "disable_persistent_network_statistics", td_api::make_object<td_api::optionValueBoolean>(true)), SessionManager::logIfResponseError);
-            execute(td_api::make_object<td_api::setOption>(
-                    "disable_time_adjustment_protection", td_api::make_object<td_api::optionValueBoolean>(true)), SessionManager::logIfResponseError);
+            sendTdLibParameters();
             return true;
         }
         case td_api::authorizationStateWaitEncryptionKey::ID: {
@@ -284,26 +258,48 @@ bool ClientSession::handleUpdateAuthorizationState(td::td_api::object_ptr<td::td
         }
         case td_api::authorizationStateWaitPhoneNumber::ID: {
             // check if we already have bot token
-            if (mAuthState == AuthorizationState::INITIALIZATION && !mAuthBotToken.empty()) {
-                // send phone number
-                execute(td_api::make_object<td_api::checkAuthenticationBotToken>(mAuthBotToken), [this](auto result) {
-                    if (result->get_id() == td_api::error::ID) {
-                        auto error = td_api::move_object_as<td_api::error>(result);
-                        LOGE("Error checking authentication bot token: %s", error->message_.c_str());
-                        mAuthState = AuthorizationState::BAD_TOKEN;
-                    } else {
-                        if (result->get_id() == td_api::ok::ID) {
-                            auto ok = td_api::move_object_as<td_api::ok>(result);
-                            LOGD("auth success");
-                            mAuthState = AuthorizationState::AUTHORIZED;
-                        } else {
-                            LOGE("Unexpected result checking authentication bot token: %d", result->get_id());
+            if (mAuthState == AuthorizationState::INITIALIZATION) {
+                // if we have access token, try to use it
+                if (!mAuthBotToken.empty()) {
+                    // send bot token
+                    LOGD("try auth with bot token");
+                    execute(td_api::make_object<td_api::checkAuthenticationBotToken>(mAuthBotToken), [this](auto result) {
+                        if (result->get_id() == td_api::error::ID) {
+                            auto error = td_api::move_object_as<td_api::error>(result);
+                            LOGE("Error checking authentication bot token: %s", error->message_.c_str());
                             mAuthState = AuthorizationState::BAD_TOKEN;
+                        } else {
+                            if (result->get_id() == td_api::ok::ID) {
+                                auto ok = td_api::move_object_as<td_api::ok>(result);
+                                LOGD("auth success");
+                                mAuthState = AuthorizationState::AUTHORIZED;
+                            } else {
+                                LOGE("Unexpected result checking authentication bot token: %d", result->get_id());
+                                mAuthState = AuthorizationState::BAD_TOKEN;
+                            }
                         }
-                    }
-                });
-                mAuthBotToken.clear();
-                mAuthState = AuthorizationState::WAIT_RESPONSE;
+                    });
+                    mAuthBotToken.clear();
+                    mAuthState = AuthorizationState::WAIT_RESPONSE;
+                } else if (!mAuthUserPhone.empty()) {
+                    // send phone number
+                    LOGD("try auth with phone number");
+                    auto authSettings = td_api::make_object<td_api::phoneNumberAuthenticationSettings>(false, false, false, false, std::vector<std::string>());
+                    auto request = td_api::make_object<td_api::setAuthenticationPhoneNumber>(mAuthUserPhone, std::move(authSettings));
+                    execute(std::move(request), [](auto resp) {
+                        int32_t result = resp->get_id();
+                        if (result == td_api::ok::ID) {
+                            return;
+                        }
+                        LOGD("setAuthenticationPhoneNumber: %d", result);
+                        if (resp->get_id() == td_api::error::ID) {
+                            auto error = td_api::move_object_as<td_api::error>(resp);
+                            LOGE("setAuthenticationPhoneNumber error: %s", error->message_.c_str());
+                        }
+                    });
+                    mAuthBotToken.clear();
+                    mAuthState = AuthorizationState::WAIT_RESPONSE;
+                }
                 return true;
             } else {
                 mAuthState = AuthorizationState::WAIT_TOKEN;
@@ -313,6 +309,78 @@ bool ClientSession::handleUpdateAuthorizationState(td::td_api::object_ptr<td::td
         case td_api::authorizationStateReady::ID: {
             mAuthState = AuthorizationState::AUTHORIZED;
             LOGI("Authorization success");
+            return true;
+        }
+        case td_api::authorizationStateWaitCode::ID: {
+            mAuthState = AuthorizationState::WAIT_CODE;
+            LOGW("Authorization waiting code");
+            // run on another thread
+            SessionManager::getInstance().getExecutors().execute([this]() {
+                std::cout << ">>> Enter code for client ID " << getTdLibObjectId() << ": " << std::endl;
+                std::string code;
+                std::getline(std::cin, code);
+                // strip whitespace
+                code.erase(std::remove_if(code.begin(), code.end(), isspace), code.end());
+                // strip newline
+                code.erase(std::remove(code.begin(), code.end(), '\n'), code.end());
+                if (code.empty()) {
+                    LOGE("Empty code, aborting");
+                    mAuthState = AuthorizationState::WAIT_TOKEN;
+                    return true;
+                }
+                execute(td_api::make_object<td_api::checkAuthenticationCode>(code), [this, code](auto result) {
+                    if (result->get_id() == td_api::error::ID) {
+                        auto error = td_api::move_object_as<td_api::error>(result);
+                        LOGE("Error checking authentication code: %s", error->message_.c_str());
+                        mAuthState = AuthorizationState::BAD_TOKEN;
+                    } else {
+                        if (result->get_id() == td_api::ok::ID) {
+                            auto ok = td_api::move_object_as<td_api::ok>(result);
+                            LOGD("send code '%s' success", code.c_str());
+                            mAuthState = AuthorizationState::WAIT_RESPONSE;
+                        } else {
+                            LOGE("Unexpected result checking authentication code: %d", result->get_id());
+                            mAuthState = AuthorizationState::BAD_TOKEN;
+                        }
+                    }
+                });
+                return true;
+            });
+            return true;
+        }
+        case td_api::authorizationStateWaitPassword::ID: {
+            mAuthState = AuthorizationState::WAIT_PASSWORD;
+            LOGW("Authorization waiting password");
+            // run on another thread
+            SessionManager::getInstance().getExecutors().execute([this]() {
+                std::cout << ">>> Enter password for client ID " << getTdLibObjectId() << ": " << std::endl;
+                std::string password;
+                std::getline(std::cin, password);
+                // strip newline
+                password.erase(std::remove(password.begin(), password.end(), '\n'), password.end());
+                if (password.empty()) {
+                    LOGE("Empty password, aborting");
+                    mAuthState = AuthorizationState::WAIT_TOKEN;
+                    return true;
+                }
+                execute(td_api::make_object<td_api::checkAuthenticationPassword>(password), [this, password](auto result) {
+                    if (result->get_id() == td_api::error::ID) {
+                        auto error = td_api::move_object_as<td_api::error>(result);
+                        LOGE("Error checking authentication password: %s", error->message_.c_str());
+                        mAuthState = AuthorizationState::BAD_TOKEN;
+                    } else {
+                        if (result->get_id() == td_api::ok::ID) {
+                            auto ok = td_api::move_object_as<td_api::ok>(result);
+                            LOGD("send password <length=%d> success", int(password.size()));
+                            mAuthState = AuthorizationState::WAIT_RESPONSE;
+                        } else {
+                            LOGE("Unexpected result checking authentication password: %d", result->get_id());
+                            mAuthState = AuthorizationState::BAD_TOKEN;
+                        }
+                    }
+                });
+                return true;
+            });
             return true;
         }
         default: {
@@ -354,8 +422,40 @@ void ClientSession::logInWithBotToken(const std::string &botToken) {
     }
     mAuthBotToken = botToken;
     if (mAuthState == AuthorizationState::WAIT_TOKEN || mAuthState == AuthorizationState::BAD_TOKEN) {
+        LOGD("try auth with bot token");
         execute(td_api::make_object<td_api::checkAuthenticationBotToken>(mAuthBotToken), SessionManager::logIfResponseError);
         mAuthState = AuthorizationState::WAIT_RESPONSE;
+    }
+}
+
+void ClientSession::logInWithPhoneNumber(const std::string &phoneNumber) {
+    if (phoneNumber.empty()) {
+        LOGE("phone number is empty");
+        return;
+    }
+    if (mAuthState == AuthorizationState::AUTHORIZED) {
+        LOGE("already authorized");
+        return;
+    }
+    mAuthUserPhone = phoneNumber;
+    if (mAuthState == AuthorizationState::WAIT_TOKEN || mAuthState == AuthorizationState::BAD_TOKEN) {
+        LOGD("try auth with phone number");
+        auto authSettings = td_api::make_object<td_api::phoneNumberAuthenticationSettings>(false, false, false, false, std::vector<std::string>());
+        auto request = td_api::make_object<td_api::setAuthenticationPhoneNumber>(phoneNumber, std::move(authSettings));
+        execute(std::move(request), [](auto resp) {
+            int32_t result = resp->get_id();
+            if (result == td_api::ok::ID) {
+                return;
+            }
+            LOGD("setAuthenticationPhoneNumber: %d", result);
+            if (resp->get_id() == td_api::error::ID) {
+                auto error = td_api::move_object_as<td_api::error>(resp);
+                LOGE("setAuthenticationPhoneNumber error: %s", error->message_.c_str());
+            }
+        });
+        mAuthState = AuthorizationState::WAIT_RESPONSE;
+    } else if (mAuthState == AuthorizationState::INITIALIZATION) {
+        sendTdLibParameters();
     }
 }
 
@@ -500,6 +600,39 @@ void ClientSession::handleUpdateMessageSendSucceeded(td::td_api::object_ptr<td::
         LOGI("UpdateMessageSendSucceeded: message_id = %ld, message_thread_id = %ld",
              update->old_message_id_, update->message_->message_thread_id_);
     }
+}
+
+void ClientSession::sendTdLibParameters() {
+    // construct parameters
+    auto parameters = td_api::make_object<td_api::tdlibParameters>();
+    parameters->use_test_dc_ = mTdLibParameters.use_test_dc_;
+    parameters->database_directory_ = mTdLibParameters.database_directory_;
+    parameters->files_directory_ = mTdLibParameters.files_directory_;
+    parameters->use_file_database_ = mTdLibParameters.use_file_database_;
+    parameters->use_chat_info_database_ = mTdLibParameters.use_chat_info_database_;
+    parameters->use_message_database_ = mTdLibParameters.use_message_database_;
+    parameters->use_secret_chats_ = mTdLibParameters.use_secret_chats_;
+    parameters->api_id_ = mTdLibParameters.api_id_;
+    parameters->api_hash_ = mTdLibParameters.api_hash_;
+    parameters->system_language_code_ = mTdLibParameters.system_language_code_;
+    parameters->device_model_ = mTdLibParameters.device_model_;
+    parameters->system_version_ = mTdLibParameters.system_version_;
+    parameters->application_version_ = mTdLibParameters.application_version_;
+    parameters->enable_storage_optimizer_ = mTdLibParameters.enable_storage_optimizer_;
+    parameters->ignore_file_names_ = mTdLibParameters.ignore_file_names_;
+    // send parameters
+    execute(td_api::make_object<td_api::setTdlibParameters>(
+            std::move(parameters)), SessionManager::logIfResponseError);
+    // send extra options: ignore_inline_thumbnails, reuse_uploaded_photos_by_hash,
+    // disable_persistent_network_statistics, disable_time_adjustment_protection
+    execute(td_api::make_object<td_api::setOption>(
+            "ignore_inline_thumbnails", td_api::make_object<td_api::optionValueBoolean>(true)), SessionManager::logIfResponseError);
+    execute(td_api::make_object<td_api::setOption>(
+            "reuse_uploaded_photos_by_hash", td_api::make_object<td_api::optionValueBoolean>(true)), SessionManager::logIfResponseError);
+    execute(td_api::make_object<td_api::setOption>(
+            "disable_persistent_network_statistics", td_api::make_object<td_api::optionValueBoolean>(true)), SessionManager::logIfResponseError);
+    execute(td_api::make_object<td_api::setOption>(
+            "disable_time_adjustment_protection", td_api::make_object<td_api::optionValueBoolean>(true)), SessionManager::logIfResponseError);
 }
 
 }

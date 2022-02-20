@@ -66,6 +66,8 @@ public:
     static inline void setLogHandler(LogHandler h) noexcept {
         mHandler = h;
     }
+
+    static const char *levelToString(Level level) noexcept;
 };
 
 #define LOGE(...)  Log::format(Log::Level::ERROR, LOG_TAG, __VA_ARGS__)

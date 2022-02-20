@@ -44,9 +44,9 @@ public:
 
     uint64_t sendRequestWithClientId(int32_t clientId, td::td_api::object_ptr<td::td_api::Function> request, nullptr_t);
 
-    [[nodiscard]] ClientSession *createSession(const ClientSession::TdLibParameters &parameters);
+    [[nodiscard]] std::shared_ptr<ClientSession> createSession(const ClientSession::TdLibParameters &parameters);
 
-    [[nodiscard]] ClientSession *getSession(int32_t tdLibId) const;
+    [[nodiscard]] std::shared_ptr<ClientSession> getSession(int32_t tdLibId) const;
 
     void terminateSession(int32_t tdLibId);
 
@@ -68,7 +68,7 @@ private:
     std::unique_ptr<td::ClientManager> mClientManager;
     std::atomic_uint64_t mQuerySequence = 1;
     ConcurrentHashMap<uint64_t, std::function<void(td::td_api::object_ptr<td::td_api::Object>)>> mQueryCallbacks;
-    ConcurrentHashMap<int32_t, std::unique_ptr<ClientSession>> mClientSessions;
+    ConcurrentHashMap<int32_t, std::shared_ptr<ClientSession>> mClientSessions;
     pthread_t mWorkerThread = 0;
     std::mutex mLooperMutex;
     std::condition_variable mLooperCondition;
