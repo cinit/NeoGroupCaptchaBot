@@ -276,16 +276,17 @@ bool ClientSession::handleUpdate(td::td_api::object_ptr<td::td_api::Object> upda
             LOGD("updateMessageMentionRead not implemented");
             return true;
         }
+        case td_api::updateMessageIsPinned::ID: {
+            return true;
+        }
         case td_api::updateChatVideoChat::ID: {
             LOGW("TODO: updateChatVideoChat not implemented");
             return true;
         }
         case td_api::updateUserStatus::ID: {
-            LOGW("TODO: updateUserStatus not implemented");
             return true;
         }
         case td_api::updateChatAction::ID: {
-            LOGW("TODO: updateChatAction not implemented");
             return true;
         }
         case td_api::updateUserFullInfo::ID: {
@@ -301,7 +302,7 @@ bool ClientSession::handleUpdate(td::td_api::object_ptr<td::td_api::Object> upda
             return true;
         }
         case td_api::updateMessageInteractionInfo::ID: {
-            LOGI("TODO: updateMessageInteractionInfo not implemented");
+            LOGD("TODO: updateMessageInteractionInfo not implemented");
             return true;
         }
         case td_api::updateUser::ID: {
