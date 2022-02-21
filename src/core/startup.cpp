@@ -25,7 +25,7 @@ namespace tdapi = td::td_api;
 
 static constexpr const char *LOG_TAG = "startup";
 
-int main() {
+int main(int argc, char *argv[]) {
     Log::setLogHandler([](Log::Level level, const char *tag, const char *msg) {
         uint64_t timestamp = utils::getCurrentTimeMillis();
         uint64_t timeOfDay = timestamp % (24 * 60 * 60 * 1000) + 8 * 60 * 60 * 1000; // UTC+8
@@ -55,23 +55,40 @@ int main() {
     std::string tgBotToken;
     std::string tgUserPhone;
 
-    // read env vars
-    if (const char *env = getenv("TG_API_ID")) {
+    // read from cmd line
+    for (int i = 1; i < argc; ++i) {
+        if (strstr(argv[i], "--api-id=") == argv[i]) {
+            tgApiId = atoi(argv[i] + strlen("--api-id="));
+        } else if (strstr(argv[i], "--api-hash=") == argv[i]) {
+            tgApiHash = argv[i] + strlen("--api-hash=");
+        } else if (strstr(argv[i], "--bot-token=") == argv[i]) {
+            tgBotToken = argv[i] + strlen("--tg-bot-token=");
+        } else if (strstr(argv[i], "--user-phone=") == argv[i]) {
+            tgUserPhone = argv[i] + strlen("--user-phone=");
+        }
+    }
+
+    // read env vars if not set
+    if (const char *env; (tgApiId <= 0) && (env = getenv("TG_API_ID"))) {
         tgApiId = atoi(env);
     }
-    if (const char *env = getenv("TG_API_HASH")) {
+    if (const char *env; (tgApiHash.empty()) && (env = getenv("TG_API_HASH"))) {
         tgApiHash = env;
     }
-    if (const char *env = getenv("TG_BOT_TOKEN")) {
+    if (const char *env; (tgBotToken.empty()) && (env = getenv("TG_BOT_TOKEN"))) {
         tgBotToken = env;
     }
-    if (const char *env = getenv("TG_USER_PHONE")) {
+    if (const char *env; (tgUserPhone.empty()) && (env = getenv("TG_USER_PHONE"))) {
         tgUserPhone = env;
     }
+    // check if all required params are set
     if (tgApiId <= 0 || tgApiHash.empty() || tgBotToken.empty() || tgUserPhone.empty()) {
-        std::cerr << "Please set environ variable TG_API_ID, TG_API_HASH, TG_BOT_TOKEN and TG_USER_PHONE." << std::endl;
+        std::cerr << "Please either set TG_API_ID, TG_API_HASH, TG_BOT_TOKEN and TG_USER_PHONE env vars" << std::endl;
+        std::cerr << "or set '--api-id=xxx', '--api-hash=xxx', '--bot-token=xxx' and '--user-phone=xxx' cmd line args." << std::endl;
+        std::cerr << "Note: if the --user-phone param has spaces, please use something like \"--user-phone=+1 114514\" instead." << std::endl;
         return 1;
     }
+
     auto exePath = getCurrentExecutablePath();
     auto exeDir = getParentDirectory(exePath);
     if (exeDir.empty()) {
